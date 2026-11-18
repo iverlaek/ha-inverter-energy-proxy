@@ -1,0 +1,43 @@
+# The proxy's configuration. Mounted read-only into every container; the mode is
+# chosen per service on the command line, so one file serves core and facades.
+
+log_level: info
+
+poll:
+  interval: 30        # seconds between polls of the real devices
+  ttl: 120            # a reading older than this counts as stale
+  min_backoff: 5
+  max_backoff: 300
+
+# How facades reach the core. `remote` must be the core's LAN address.
+core:
+  listen_host: 0.0.0.0
+  port: 8787
+  remote: "192.168.55.91:8787"
+  device: goodwe
+
+drivers:
+  - name: goodwe
+    brand: goodwe
+    enabled: true
+    host: 192.168.20.13     # the real GoodWe dongle
+    port: 8899
+    comm_addr: 0xF7
+  # Paused until GoodWe works end to end.
+  - name: solaredge
+    brand: solaredge
+    enabled: false
+  - name: enphase
+    brand: enphase
+    enabled: false
+
+battery:
+  brand: goodwe
+  control: ems              # ems (EMS registers) or eco (a single Eco window)
+  rated_power_w: 10000
+
+servers:
+  - kind: goodwe_dongle
+    device: goodwe
+    host: 0.0.0.0
+    port: 8899

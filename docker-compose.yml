@@ -1,0 +1,47 @@
+# The proxy stack.
+#
+# `core` holds all the brand knowledge and polls the real devices. Each
+# `facade-*` presents one emulated device to consumers on its own LAN IP (via the
+# macvlan network below), so consumers can be pointed at that IP and keep using
+# the protocol they already speak.
+#
+# Bring up the GoodWe milestone:
+#     docker compose up -d --build
+#
+# See README.md for the one-time macvlan host setup.
+
+name: inverter-energy-proxy
+
+x-proxy: &proxy
+  build: .
+  image: inverter-energy-proxy:latest
+  restart: unless-stopped
+  volumes:
+    - ./config/inverter_proxy.yaml:/config/inverter_proxy.yaml:ro
+
+services:
+  core:
+    <<: *proxy
+    command: ["--config", "/config/inverter_proxy.yaml", "--mode", "core"]
+    networks:
+      lan:
+        ipv4_address: ${CORE_IP:-192.168.55.91}
+
+  facade-goodwe:
+    <<: *proxy
+    depends_on:
+      - core
+    command: ["--config", "/config/inverter_proxy.yaml", "--mode", "facade"]
+    networks:
+      lan:
+        ipv4_address: ${GOODWE_FACADE_IP:-192.168.55.92}
+
+networks:
+  lan:
+    driver: macvlan
+    driver_opts:
+      parent: ${LAN_PARENT:-enp3s0}
+    ipam:
+      config:
+        - subnet: ${LAN_SUBNET:-192.168.55.0/24}
+          gateway: ${LAN_GATEWAY:-192.168.55.1}

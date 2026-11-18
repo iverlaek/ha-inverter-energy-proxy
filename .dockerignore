@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+*.md
+docs
+tests
+scripts
+.github
+conftest.py
+pytest.ini
+requirements_test.txt
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
