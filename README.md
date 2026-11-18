@@ -57,7 +57,20 @@ decides how to make that happen.
 The same image runs either part, selected by `--mode` (see
 [docs/architecture.md](docs/architecture.md) for the full story).
 
-## Quick start (Docker Compose + macvlan)
+## Quick start (Docker Compose)
+
+Two deployment shapes ship with the repo, both driven by the same image and
+config:
+
+* **macvlan** (`docker-compose.yml`) — each facade gets its own LAN IP, so you
+  can point an existing consumer at that IP and leave its configuration
+  otherwise untouched. This is the default and the one the steps below describe.
+* **one host IP** (`docker-compose.host.yml`) — the containers share the host's
+  network namespace and the facade listens on the host's own address. Simpler,
+  but a port per facade. See
+  [Alternative: one host IP](#alternative-one-host-ip-no-macvlan).
+
+### macvlan
 
 Each facade gets its own IP address on your LAN, so you can point an existing
 consumer at that IP and leave its configuration otherwise untouched.
@@ -112,6 +125,32 @@ docker compose logs -f core
 # read a block straight from the facade
 python3 scripts/probe.py "$GOODWE_FACADE_IP" --offset 35000 --count 20
 ```
+
+### Alternative: one host IP (no macvlan)
+
+If the machine running the stack is dedicated to it, and a single emulated device
+is enough, you can skip macvlan. The containers then share the host's network
+namespace and the facade listens on the host's own address — no extra LAN
+addresses and no host shim.
+
+```bash
+$EDITOR config/inverter_proxy.yaml   # set the dongle host and core.remote
+./scripts/up-host.sh                 # docker compose -f docker-compose.host.yml up -d --build
+```
+
+Set `core.remote` to the loopback address, because the facade reaches the core
+inside the host:
+
+```yaml
+core:
+  listen_host: 127.0.0.1
+  port: 8787
+  remote: "127.0.0.1:8787"
+```
+
+Consumers then point at the host's own IP, port `8899`. This mode costs a port
+per facade, so two facades that both expect UDP `8899` cannot coexist; use the
+macvlan file when every facade needs its own address.
 
 ## Configuration
 

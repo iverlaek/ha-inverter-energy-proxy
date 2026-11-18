@@ -1,0 +1,36 @@
+# The proxy stack on a single host IP, without macvlan.
+#
+# Every container shares the host's network namespace (`network_mode: host`), so
+# the facade listens on the host's own LAN address and consumers point straight
+# at that address. Compared with docker-compose.yml this is simpler — no extra
+# LAN addresses, no host shim — but it costs a port per facade: two facades that
+# both expect UDP 8899 cannot coexist. Use this when you run one emulated device
+# (or a few on distinct ports); use the macvlan file when each facade needs its
+# own address.
+#
+#     docker compose -f docker-compose.host.yml up -d --build
+#
+# Because the containers share the host network, a facade reaches the core over
+# the loopback address: `core.remote` in config/inverter_proxy.yaml must be
+# `127.0.0.1:<core.port>` (e.g. `127.0.0.1:8787`).
+
+name: inverter-energy-proxy
+
+x-proxy: &proxy
+  build: .
+  image: inverter-energy-proxy:latest
+  restart: unless-stopped
+  network_mode: host
+  volumes:
+    - ./config/inverter_proxy.yaml:/config/inverter_proxy.yaml:ro
+
+services:
+  core:
+    <<: *proxy
+    command: ["--config", "/config/inverter_proxy.yaml", "--mode", "core"]
+
+  facade-goodwe:
+    <<: *proxy
+    depends_on:
+      - core
+    command: ["--config", "/config/inverter_proxy.yaml", "--mode", "facade"]
