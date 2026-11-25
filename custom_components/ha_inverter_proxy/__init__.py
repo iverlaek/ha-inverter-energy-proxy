@@ -133,10 +133,11 @@ async def async_set_goodwe_mode(
     hass: HomeAssistant, entry_id: str, runtime: dict[str, Any], mode: str
 ) -> bool:
     """Point GoodWe at either the proxy facade or the physical inverter."""
+    goodwe_id = runtime[CONF_GOODWE_ENTRY_ID]
     if mode == "proxy":
         changed = await async_set_goodwe_address(
             hass,
-            entry_id,
+            goodwe_id,
             runtime[CONF_PROXY_HOST],
             int(runtime[CONF_FACADE_PORT]),
         )
@@ -145,7 +146,7 @@ async def async_set_goodwe_mode(
     if mode == "inverter":
         changed = await async_set_goodwe_address(
             hass,
-            entry_id,
+            goodwe_id,
             runtime[CONF_ORIGINAL_HOST],
             int(runtime[CONF_ORIGINAL_PORT]),
         )
@@ -268,7 +269,16 @@ async def _async_monitor(
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up proxy monitoring and expose status/control entities."""
-    data = {**entry.data, **entry.options}
+    # Older builds could leak GoodWe's host/port into this entry; drop them.
+    clean_data = {
+        key: value
+        for key, value in entry.data.items()
+        if key not in (CONF_HOST, CONF_PORT)
+    }
+    if clean_data != dict(entry.data):
+        hass.config_entries.async_update_entry(entry, data=clean_data)
+
+    data = {**clean_data, **entry.options}
     goodwe = hass.config_entries.async_get_entry(data[CONF_GOODWE_ENTRY_ID])
     fallback_active = bool(
         goodwe and goodwe.data.get(CONF_HOST) == data[CONF_ORIGINAL_HOST]
