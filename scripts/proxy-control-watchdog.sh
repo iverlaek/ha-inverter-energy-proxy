@@ -13,7 +13,8 @@
 set -eu
 
 PYTHON=${PYTHON:-/usr/bin/python3}
-SCRIPT=${PROXY_CONTROL_SCRIPT:-/home/verlaek/ha-inverter-energy-proxy/scripts/proxy_control.py}
+WORKDIR=${PROXY_CONTROL_WORKDIR:-/home/verlaek/ha-inverter-energy-proxy}
+SCRIPT=${PROXY_CONTROL_SCRIPT:-$WORKDIR/scripts/proxy_control.py}
 TOKEN_FILE=${PROXY_CONTROL_TOKEN_FILE:-/home/verlaek/.secrets/proxy_control_token}
 LOG_FILE=${PROXY_CONTROL_LOG_FILE:-/home/verlaek/.local/log/proxy-control.log}
 HOST=${PROXY_CONTROL_HOST:-0.0.0.0}
@@ -30,4 +31,5 @@ setsid "$PYTHON" "$SCRIPT" \
   --listen-host "$HOST" \
   --port "$PORT" \
   --token-file "$TOKEN_FILE" \
+  --working-dir "$WORKDIR" \
   >>"$LOG_FILE" 2>&1 </dev/null &
