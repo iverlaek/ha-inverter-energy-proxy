@@ -57,6 +57,14 @@ decides how to make that happen.
 The same image runs either part, selected by `--mode` (see
 [docs/architecture.md](docs/architecture.md) for the full story).
 
+## Documentation
+
+- [Deployment](docs/deployment.md) — network rules, host/macvlan setup, config reference, control API
+- [Home Assistant integration](docs/ha-integration.md) — install, setup fields, fallback behavior, verification
+- [Security and credentials](docs/security.md) — what is stored where, control API exposure, publishing checklist
+- [Architecture](docs/architecture.md) — layers and internal protocol
+- [Register map](docs/registers.md) — GoodWe/EMS registers used by the drivers
+
 ## Quick start (Docker Compose)
 
 Two deployment shapes ship with the repo, both driven by the same image and
@@ -178,6 +186,9 @@ restores the original GoodWe address.
 
 Multiple HA instances can each add the same proxy; they all read cached data and
 the proxy remains the only client that polls or writes to the physical inverter.
+
+See [docs/ha-integration.md](docs/ha-integration.md) for the full setup, fallback
+policy, removal behavior, and troubleshooting.
 
 ## Configuration
 
