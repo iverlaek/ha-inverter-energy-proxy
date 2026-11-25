@@ -119,7 +119,7 @@ class Handler(BaseHTTPRequestHandler):
         return hmac.compare_digest(supplied[7:].strip(), _TOKEN)
 
     def _reject(self) -> None:
-        self.log_warning("unauthorized request from %s", self.client_address[0])
+        self.log_message("unauthorized request from %s", self.client_address[0])
         self._send(401, {"ok": False, "error": "unauthorized"})
 
     def do_GET(self) -> None:  # noqa: N802
