@@ -12,7 +12,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import async_get_goodwe_state, device_info
-from .const import DOMAIN, update_signal
+from .const import CONF_GOODWE_ENTRY_ID, DOMAIN, update_signal
 
 
 async def async_setup_entry(
@@ -26,7 +26,8 @@ class GoodWeUsesProxySensor(BinarySensorEntity):
     """On when the GoodWe integration is configured with the proxy address."""
 
     _attr_should_poll = False
-    _attr_translation_key = "goodwe_uses_proxy"
+    _attr_has_entity_name = False
+    _attr_name = "GoodWe uses proxy"
     _attr_icon = "mdi:check-network"
 
     def __init__(self, entry: ConfigEntry) -> None:
@@ -54,7 +55,8 @@ class GoodWeUsesProxySensor(BinarySensorEntity):
 
     @callback
     def _handle_update(self) -> None:
-        state = async_get_goodwe_state(self.hass, self._entry.entry_id, self._runtime)
+        goodwe_id = self._runtime[CONF_GOODWE_ENTRY_ID]
+        state = async_get_goodwe_state(self.hass, goodwe_id, self._runtime)
         self._attr_is_on = bool(state["uses_proxy"])
         self._attr_icon = "mdi:check-network" if self._attr_is_on else "mdi:close-network"
         self._attr_extra_state_attributes = {

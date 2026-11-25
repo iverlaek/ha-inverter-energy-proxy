@@ -45,37 +45,37 @@ def _lifecycle(command: str) -> Callable[[HomeAssistant, ConfigEntry, dict], Awa
 DESCRIPTIONS: tuple[ProxyButtonDescription, ...] = (
     ProxyButtonDescription(
         key="use_proxy",
-        translation_key="use_proxy",
+        name="Use proxy address",
         icon="mdi:lan-connect",
         press_fn=_use_proxy,
     ),
     ProxyButtonDescription(
         key="use_inverter",
-        translation_key="use_inverter",
+        name="Use inverter address",
         icon="mdi:solar-power",
         press_fn=_use_inverter,
     ),
     ProxyButtonDescription(
         key="start_proxy",
-        translation_key="start_proxy",
+        name="Start proxy server",
         icon="mdi:play",
         press_fn=_lifecycle("start"),
     ),
     ProxyButtonDescription(
         key="stop_proxy",
-        translation_key="stop_proxy",
+        name="Stop proxy server",
         icon="mdi:stop",
         press_fn=_lifecycle("stop"),
     ),
     ProxyButtonDescription(
         key="reboot_proxy",
-        translation_key="reboot_proxy",
+        name="Reboot proxy server",
         icon="mdi:restart",
         press_fn=_lifecycle("reboot"),
     ),
     ProxyButtonDescription(
         key="shutdown_proxy",
-        translation_key="shutdown_proxy",
+        name="Shutdown proxy server",
         icon="mdi:power",
         press_fn=_lifecycle("shutdown"),
     ),
@@ -94,6 +94,7 @@ class ProxyButton(ButtonEntity):
 
     entity_description: ProxyButtonDescription
     _attr_should_poll = False
+    _attr_has_entity_name = False
 
     def __init__(self, entry: ConfigEntry, description: ProxyButtonDescription) -> None:
         self.entity_description = description

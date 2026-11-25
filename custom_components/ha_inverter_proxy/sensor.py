@@ -13,7 +13,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import async_get_goodwe_state, device_info
-from .const import DOMAIN, update_signal
+from .const import CONF_GOODWE_ENTRY_ID, DOMAIN, update_signal
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -26,25 +26,25 @@ class ProxyAddressSensorDescription(SensorEntityDescription):
 DESCRIPTIONS: tuple[ProxyAddressSensorDescription, ...] = (
     ProxyAddressSensorDescription(
         key="goodwe_address",
-        translation_key="goodwe_address",
+        name="GoodWe configured address",
         icon="mdi:lan-connect",
         value_fn=lambda state: str(state["goodwe_address"]),
     ),
     ProxyAddressSensorDescription(
         key="proxy_address",
-        translation_key="proxy_address",
+        name="Proxy GoodWe address",
         icon="mdi:lan",
         value_fn=lambda state: str(state["proxy_address"]),
     ),
     ProxyAddressSensorDescription(
         key="inverter_address",
-        translation_key="inverter_address",
+        name="Inverter address",
         icon="mdi:solar-power",
         value_fn=lambda state: str(state["inverter_address"]),
     ),
     ProxyAddressSensorDescription(
         key="core_address",
-        translation_key="core_address",
+        name="Proxy control address",
         icon="mdi:cog",
         value_fn=lambda state: str(state["core_address"]),
     ),
@@ -65,6 +65,7 @@ class ProxyAddressSensor(SensorEntity):
 
     entity_description: ProxyAddressSensorDescription
     _attr_should_poll = False
+    _attr_has_entity_name = False
 
     def __init__(
         self, entry: ConfigEntry, description: ProxyAddressSensorDescription
@@ -93,7 +94,8 @@ class ProxyAddressSensor(SensorEntity):
 
     @callback
     def _handle_update(self) -> None:
-        state = async_get_goodwe_state(self.hass, self._entry.entry_id, self._runtime)
+        goodwe_id = self._runtime[CONF_GOODWE_ENTRY_ID]
+        state = async_get_goodwe_state(self.hass, goodwe_id, self._runtime)
         self._attr_native_value = self.entity_description.value_fn(state)
         self._attr_extra_state_attributes = {
             "proxy_address": state["proxy_address"],
