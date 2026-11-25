@@ -6,10 +6,19 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.core import callback
+from homeassistant.helpers import selector
 
 from .const import (
+    CONF_CONTROL_TOKEN,
+    CONF_CONTROL_URL,
     CONF_CORE_PORT,
     CONF_FACADE_PORT,
     CONF_GOODWE_ENTRY_ID,
@@ -18,6 +27,7 @@ from .const import (
     CONF_ORIGINAL_HOST,
     CONF_ORIGINAL_PORT,
     CONF_PROXY_HOST,
+    DEFAULT_CONTROL_PORT,
     DEFAULT_CORE_PORT,
     DEFAULT_FACADE_PORT,
     DOMAIN,
@@ -40,6 +50,8 @@ class InverterProxyConfigFlow(ConfigFlow, domain=DOMAIN):
         self._proxy_host = ""
         self._core_port = DEFAULT_CORE_PORT
         self._facade_port = DEFAULT_FACADE_PORT
+        self._control_url = ""
+        self._control_token = ""
         self._status: dict[str, Any] | None = None
         self._goodwe_entries: list[ConfigEntry] = []
 
@@ -69,6 +81,18 @@ class InverterProxyConfigFlow(ConfigFlow, domain=DOMAIN):
                     CONF_INVERTER_PORT,
                     default=values.get(CONF_INVERTER_PORT, DEFAULT_FACADE_PORT),
                 ): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
+                vol.Optional(
+                    CONF_CONTROL_URL,
+                    default=values.get(CONF_CONTROL_URL, ""),
+                ): str,
+                vol.Optional(
+                    CONF_CONTROL_TOKEN,
+                    default=values.get(CONF_CONTROL_TOKEN, ""),
+                ): selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        type=selector.TextSelectorType.PASSWORD
+                    )
+                ),
             }
         )
 
@@ -84,6 +108,8 @@ class InverterProxyConfigFlow(ConfigFlow, domain=DOMAIN):
             self._facade_port = int(
                 user_input.get(CONF_FACADE_PORT, DEFAULT_FACADE_PORT)
             )
+            self._control_url = str(user_input.get(CONF_CONTROL_URL, "")).strip()
+            self._control_token = str(user_input.get(CONF_CONTROL_TOKEN, "")).strip()
 
             if not await self.hass.async_add_executor_job(
                 ping_proxy, self._proxy_host, self._core_port
@@ -201,14 +227,85 @@ class InverterProxyConfigFlow(ConfigFlow, domain=DOMAIN):
         self.hass.config_entries.async_update_entry(goodwe, data=updated)
         await self.hass.config_entries.async_reload(goodwe.entry_id)
 
+        data: dict[str, Any] = {
+            CONF_PROXY_HOST: self._proxy_host,
+            CONF_CORE_PORT: self._core_port,
+            CONF_FACADE_PORT: self._facade_port,
+            CONF_GOODWE_ENTRY_ID: goodwe.entry_id,
+            CONF_ORIGINAL_HOST: chosen_host,
+            CONF_ORIGINAL_PORT: original_port,
+        }
+        if self._control_url:
+            data[CONF_CONTROL_URL] = self._control_url
+        if self._control_token:
+            data[CONF_CONTROL_TOKEN] = self._control_token
+
         return self.async_create_entry(
             title=f"Inverter proxy ({self._proxy_host})",
-            data={
-                CONF_PROXY_HOST: self._proxy_host,
-                CONF_CORE_PORT: self._core_port,
-                CONF_FACADE_PORT: self._facade_port,
-                CONF_GOODWE_ENTRY_ID: goodwe.entry_id,
-                CONF_ORIGINAL_HOST: chosen_host,
-                CONF_ORIGINAL_PORT: original_port,
+            data=data,
+        )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """Offer an options panel with the addresses and control settings."""
+        return InverterProxyOptionsFlow(config_entry)
+
+
+class InverterProxyOptionsFlow(OptionsFlow):
+    """Show the configured addresses and let the user set the control token."""
+
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        self.config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Edit the lifecycle control settings without re-adding the integration."""
+        current = {**self.config_entry.data, **self.config_entry.options}
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            options = dict(self.config_entry.options)
+            url = str(user_input.get(CONF_CONTROL_URL, "")).strip()
+            token = str(user_input.get(CONF_CONTROL_TOKEN, "")).strip()
+            if url:
+                options[CONF_CONTROL_URL] = url
+            elif CONF_CONTROL_URL in options:
+                options.pop(CONF_CONTROL_URL)
+            if token:
+                options[CONF_CONTROL_TOKEN] = token
+            return self.async_create_entry(title="", data=options)
+
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_CONTROL_URL,
+                    default=current.get(
+                        CONF_CONTROL_URL,
+                        f"http://{current.get(CONF_PROXY_HOST, '')}:{DEFAULT_CONTROL_PORT}",
+                    ),
+                ): str,
+                vol.Optional(CONF_CONTROL_TOKEN, default=""): selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        type=selector.TextSelectorType.PASSWORD
+                    )
+                ),
+            }
+        )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={
+                "proxy_address": (
+                    f"{current.get(CONF_PROXY_HOST, '?')}:{current.get(CONF_FACADE_PORT, '?')}"
+                ),
+                "inverter_address": (
+                    f"{current.get(CONF_ORIGINAL_HOST, '?')}:{current.get(CONF_ORIGINAL_PORT, '?')}"
+                ),
+                "core_address": (
+                    f"{current.get(CONF_PROXY_HOST, '?')}:{current.get(CONF_CORE_PORT, '?')}"
+                ),
             },
         )

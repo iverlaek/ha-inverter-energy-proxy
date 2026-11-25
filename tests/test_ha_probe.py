@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 _probe_path = (
@@ -55,3 +56,63 @@ def test_configured_device_host_extracts_goodwe():
 def test_configured_device_host_reads_core_link_status():
     status = {"device": {"name": "goodwe", "host": "192.168.20.13", "port": 8899}}
     assert probe.configured_device_host(status) == "192.168.20.13"
+
+
+class _FakeResponse:
+    """Minimal stand-in for an urllib HTTP response."""
+
+    def __init__(self, payload: dict) -> None:
+        self._payload = json.dumps(payload).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args) -> bool:
+        return False
+
+    def read(self) -> bytes:
+        return self._payload
+
+
+def test_proxy_control_posts_bearer_token(monkeypatch):
+    captured: dict = {}
+
+    def fake_urlopen(request, timeout=None):
+        captured["url"] = request.full_url
+        captured["headers"] = dict(request.headers)
+        captured["body"] = request.data
+        captured["timeout"] = timeout
+        return _FakeResponse({"ok": True, "command": "start"})
+
+    monkeypatch.setattr(probe.urllib.request, "urlopen", fake_urlopen)
+    result = probe.proxy_control("http://192.168.20.58:8790/", "dummy", "start")
+
+    assert result == {"ok": True, "command": "start"}
+    assert captured["url"] == "http://192.168.20.58:8790/command"
+    assert json.loads(captured["body"]) == {"command": "start"}
+    assert captured["headers"]["Authorization"] == "Bearer dummy"
+
+
+def test_proxy_control_returns_none_when_service_rejects(monkeypatch):
+    def fake_urlopen(_request, timeout=None):
+        return _FakeResponse({"ok": False, "error": "unauthorized"})
+
+    monkeypatch.setattr(probe.urllib.request, "urlopen", fake_urlopen)
+    result = probe.proxy_control("http://host:8790", "dummy", "stop")
+    assert result == {"ok": False, "error": "unauthorized"}
+
+
+def test_proxy_control_status_reads_state(monkeypatch):
+    captured: dict = {}
+
+    def fake_urlopen(request, timeout=None):
+        captured["url"] = request.full_url
+        captured["method"] = request.get_method()
+        return _FakeResponse({"ok": True, "containers": []})
+
+    monkeypatch.setattr(probe.urllib.request, "urlopen", fake_urlopen)
+    result = probe.proxy_control_status("http://host:8790", "dummy")
+
+    assert result == {"ok": True, "containers": []}
+    assert captured["url"] == "http://host:8790/status"
+    assert captured["method"] == "GET"

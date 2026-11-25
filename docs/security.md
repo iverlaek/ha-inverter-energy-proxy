@@ -13,7 +13,8 @@ integration does not store that token.
 | --- | --- | --- |
 | `config/inverter_proxy.yaml` | IP addresses, ports, polling settings | Yes — no secrets |
 | `.env` | macvlan network settings (interface, subnet, gateway, IPs) | **No** — git-ignored |
-| HA Inverter Proxy config entry | Proxy IP/ports, GoodWe entry ID, original inverter IP/port | Inside HA, not in this repo |
+| HA Inverter Proxy config entry | Proxy IP/ports, GoodWe entry ID, original inverter IP/port, optional VM control URL/token | Inside HA, not in this repo |
+| `~/.secrets/proxy_control_token` on the VM | Bearer token for the lifecycle API | **No** — mode 600, outside the repo |
 | HA long-lived token | Home Assistant API access | Outside this repo, e.g. a mode-`600` secrets file |
 | SMB/SSH credentials | Used only to deploy files | Outside this repo |
 
@@ -33,6 +34,12 @@ reach it can retarget the inverter. Therefore:
 The HA integration only needs to reach `8787` to send `configure` and `status`.
 Facades need `8787` only if they run on another host (macvlan); with
 `network_mode: host` they use loopback.
+
+The optional VM lifecycle API on TCP `8790` is bearer-token protected, but the
+token is sent in a header on every request. Keep it on VLAN20 only and do not
+put the token in URLs, logs, screenshots, or this repository. The HA integration
+stores it in its config entry; the VM reads it from a mode-600 file outside the
+repo.
 
 ## Rules for contributing or publishing
 

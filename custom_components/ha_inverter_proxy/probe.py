@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import socket
 import time
+import urllib.error
+import urllib.request
 from typing import Any
 
 GOODWE_HEADER = b"\xaa\x55"
@@ -183,3 +185,41 @@ def configure_proxy(
     if not response or not response.get("ok"):
         return None
     return response
+
+
+def proxy_control(
+    url: str, token: str, command: str, *, timeout: float = 120.0
+) -> dict[str, Any] | None:
+    """Send a lifecycle command to the VM control service."""
+    endpoint = url.rstrip("/") + "/command"
+    request = urllib.request.Request(
+        endpoint,
+        data=json.dumps({"command": command}).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, urllib.error.URLError, ValueError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def proxy_control_status(
+    url: str, token: str, *, timeout: float = 15.0
+) -> dict[str, Any] | None:
+    """Read the lifecycle state from the VM control service."""
+    endpoint = url.rstrip("/") + "/status"
+    request = urllib.request.Request(
+        endpoint, headers={"Authorization": f"Bearer {token}"}, method="GET"
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, urllib.error.URLError, ValueError):
+        return None
+    return payload if isinstance(payload, dict) else None

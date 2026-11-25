@@ -21,6 +21,31 @@ During setup and on every HA start:
 Multiple HA instances can each add the same proxy. They all read cached data;
 the proxy remains the only client that polls or writes to the physical inverter.
 
+The proxy is an extra layer that protects the inverter from being polled by
+every consumer. It is also the place where other inverter brands will later be
+translated into one common GoodWe-like view, so consumers do not need to know
+whether they are reading a GoodWe, SolarEdge, or Enphase device.
+
+## Control panel in Home Assistant
+
+Every address and control is exposed as an entity on the **Inverter Proxy**
+device, so it can be shown on a dashboard or the device panel:
+
+| Entity | Type | Meaning |
+| --- | --- | --- |
+| GoodWe configured address | sensor | Address currently stored in the GoodWe integration |
+| Proxy GoodWe address | sensor | Proxy facade address the GoodWe integration should use |
+| Inverter address | sensor | Original physical inverter/dongle address |
+| Proxy control address | sensor | Core control API address |
+| GoodWe uses proxy | binary sensor | The checkmark: **on** = GoodWe points at the proxy, **off** = it points at the inverter |
+| Use proxy address | button | Repoint GoodWe to the proxy facade |
+| Use inverter address | button | Repoint GoodWe directly to the physical inverter |
+| Start / Stop / Reboot / Shutdown proxy server | buttons | Lifecycle control of the proxy stack on the VM |
+
+The options panel (Configure) repeats the addresses and lets you set the
+lifecycle control URL and token. Pressing a button sends a dispatcher update, so
+the checkmark and address sensors refresh immediately.
+
 ## Installation
 
 1. Copy `custom_components/ha_inverter_proxy` into the HA config directory:
@@ -48,8 +73,12 @@ The setup form explains the automatic fallback before you save it.
 | Proxy GoodWe port | `8899` | GoodWe dongle facade port |
 | Inverter IP address | detected | Optional override when the stored GoodWe address is stale |
 | Inverter GoodWe port | `8899` | Real dongle UDP port |
+| Proxy server control URL | `http://<proxy>:8790` | Optional URL of the VM lifecycle control service |
+| Proxy server control token | — | Optional bearer token; stored only in HA, never in this repo |
 
-If several GoodWe entries exist, a second step asks which one to redirect.
+If several GoodWe entries exist, a second step asks which one to redirect. The
+control URL and token can also be set later from the entry's Configure panel;
+leave the token field blank there to keep the existing value.
 
 ## Automatic fallback
 
@@ -65,6 +94,26 @@ The integration checks the proxy GoodWe facade every 30 seconds.
 
 The backend stores the original inverter address in its own config entry, so the
 fallback does not depend on the GoodWe entry retaining the old IP.
+
+## Lifecycle control service
+
+The four lifecycle buttons call a small token-protected HTTP service that runs
+**on the proxy host**, not inside the containers, so it survives a full stop.
+See [deployment.md](deployment.md#vm-lifecycle-control-service) for installation.
+
+| Button | Command run on the VM |
+| --- | --- |
+| Start | `docker compose -f docker-compose.host.yml up -d` |
+| Stop | `docker compose -f docker-compose.host.yml stop` |
+| Reboot | `docker compose -f docker-compose.host.yml up -d --force-recreate` |
+| Shutdown | `docker compose -f docker-compose.host.yml down --remove-orphans` |
+
+Stopping or shutting down the proxy triggers the normal fallback after five
+minutes: HA repoints GoodWe to the inverter so you keep seeing live data. The
+addresses switch back automatically once the proxy answers again.
+
+These buttons control the **proxy service**, not the VM's power state. A full
+VM reboot or power-off must be done from the hypervisor or via SSH.
 
 ## Removing the integration
 

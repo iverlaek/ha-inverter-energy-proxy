@@ -138,6 +138,47 @@ startup. It returns the applied address:
 {"ok": true, "device": "goodwe", "host": "<GOODWE_DONGLE_IP>", "port": 8899}
 ```
 
+## VM lifecycle control service
+
+`scripts/proxy_control.py` is a small stdlib-only HTTP service that lets Home
+Assistant start, stop, reboot, and shut down the proxy stack. It runs on the
+proxy host rather than in a container, so it stays available while the
+containers are stopped.
+
+1. Create a token file outside the repository:
+
+   ```bash
+   umask 077
+   mkdir -p ~/.secrets
+   openssl rand -hex 32 > ~/.secrets/proxy_control_token
+   ```
+
+2. Install the unit and start the service:
+
+   ```bash
+   sudo cp scripts/proxy-control.service /etc/systemd/system/proxy-control.service
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now proxy-control
+   systemctl status proxy-control
+   ```
+
+3. In HA, set the control URL to `http://<PROXY_IP>:8790` and paste the token
+   into the Inverter Proxy entry's Configure panel (or into the setup form).
+   The token is stored only in HA's config entry.
+
+Endpoints:
+
+```text
+GET  /health   -> {"ok": true}                    (no auth)
+GET  /status   -> container states                (bearer token)
+POST /command  -> {"command": "start"}            (bearer token)
+```
+
+Valid commands: `start`, `stop`, `reboot` (alias `restart`), `shutdown`.
+
+Port `8790` has bearer-token authentication but should still be firewalled to
+the trusted VLAN20. Never put the token in this repository or in a log.
+
 ## Updates
 
 ```bash
