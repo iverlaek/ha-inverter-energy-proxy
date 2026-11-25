@@ -162,6 +162,28 @@ containers are stopped.
    systemctl status proxy-control
    ```
 
+   If you install it as a `systemd --user` unit instead, it will stop when the
+   last login session for that user ends. Ask an administrator to run
+   `sudo loginctl enable-linger <user>` so it survives SSH logouts.
+
+   Without `sudo`, use the cron watchdog instead. It starts the same service as
+   a detached process and restarts it within a minute if it disappears:
+
+   ```bash
+   mkdir -p ~/.local/bin
+   cp scripts/proxy-control-watchdog.sh ~/.local/bin/proxy-control-watchdog.sh
+   chmod +x ~/.local/bin/proxy-control-watchdog.sh
+   crontab - <<'EOF'
+   * * * * * /home/verlaek/.local/bin/proxy-control-watchdog.sh
+   @reboot /home/verlaek/.local/bin/proxy-control-watchdog.sh
+   EOF
+   ~/.local/bin/proxy-control-watchdog.sh
+   ```
+
+   If the systemd user unit was used previously, disable it first with
+   `systemctl --user disable --now proxy-control.service` to avoid a port
+   conflict when a new login session starts.
+
 3. In HA, set the control URL to `http://<PROXY_IP>:8790` and paste the token
    into the Inverter Proxy entry's Configure panel (or into the setup form).
    The token is stored only in HA's config entry.
