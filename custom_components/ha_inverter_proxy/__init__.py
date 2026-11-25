@@ -103,6 +103,9 @@ async def async_set_goodwe_address(
     hass.config_entries.async_update_entry(goodwe, data=updated)
     await hass.config_entries.async_reload(entry_id)
     async_dispatcher_send(hass, update_signal(entry_id))
+    for proxy_id, proxy_runtime in hass.data.get(DOMAIN, {}).items():
+        if proxy_runtime.get(CONF_GOODWE_ENTRY_ID) == entry_id:
+            async_dispatcher_send(hass, update_signal(proxy_id))
     return True
 
 
