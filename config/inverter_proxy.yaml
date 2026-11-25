@@ -1,22 +1,31 @@
 # The proxy's configuration. Mounted read-only into every container; the mode is
 # chosen per service on the command line, so one file serves core and facades.
+#
+# IoT devices, including this proxy and the GoodWe dongle, are on VLAN20
+# (192.168.20.0/24), not on the 192.168.55.0/24 LAN.
 
 log_level: info
 
 poll:
-  interval: 30        # seconds between polls of the real devices
+  interval: 10        # seconds between polls of the real devices
   ttl: 120            # a reading older than this counts as stale
   min_backoff: 5
   max_backoff: 300
 
-# How facades reach the core. `remote` must be the core's LAN address.
+# Consumers may ask as often as they want; writes to the real device are spaced.
+write_interval: 10
+
+# How facades reach the core. `remote` is loopback in host-network deployments;
+# use the core's LAN address only with the macvlan compose file.
 core:
   listen_host: 0.0.0.0
   port: 8787
-  remote: "192.168.55.91:8787"
+  remote: "127.0.0.1:8787"
   device: goodwe
 
 drivers:
+  # HA reads the original host from its GoodWe integration and sends it to the
+  # core over the control API at startup. These values are the fallback.
   - name: goodwe
     brand: goodwe
     enabled: true

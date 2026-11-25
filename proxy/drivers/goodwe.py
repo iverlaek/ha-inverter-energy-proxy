@@ -68,6 +68,7 @@ class GoodweDriver(InverterDriver):
             host, port, comm_addr, timeout, retries
         )
         self.host = host
+        self.port = port
         self._blocks = tuple(blocks) if blocks is not None else DEFAULT_BLOCKS
         self._image: dict[int, int] = {}
         self._last_regs: dict[str, list[int]] = {}
@@ -96,6 +97,13 @@ class GoodweDriver(InverterDriver):
 
     def close(self) -> None:
         self.transport.close()
+
+    def configure(self, host: str, port: int | None = None) -> None:
+        """Update the dongle address, including the warning message's target."""
+        self.host = host
+        if port is not None:
+            self.port = int(port)
+        self.transport.configure(host, port)
 
     # -- canonical model ---------------------------------------------------
 

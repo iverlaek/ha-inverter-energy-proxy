@@ -70,6 +70,10 @@ config:
   but a port per facade. See
   [Alternative: one host IP](#alternative-one-host-ip-no-macvlan).
 
+> **Network note:** IoT devices, including this proxy and the GoodWe dongle,
+> belong on **VLAN20 (`192.168.20.0/24`)**. Do not place the proxy on the
+> `192.168.55.0/24` LAN.
+
 ### macvlan
 
 Each facade gets its own IP address on your LAN, so you can point an existing
@@ -114,7 +118,7 @@ reach the facades by IP. Re-run the shim script after changing IPs.
 ### 4. Point your consumer at the facade
 
 In the GoodWe integration, replace the inverter's IP with the facade's IP
-(`GOODWE_FACADE_IP`, e.g. `192.168.55.92`). Port stays `8899`.
+(`GOODWE_FACADE_IP`, e.g. `192.168.20.92`). Port stays `8899`.
 
 ### 5. Verify
 
@@ -143,14 +147,37 @@ inside the host:
 
 ```yaml
 core:
-  listen_host: 127.0.0.1
+  listen_host: 0.0.0.0   # HA must reach the control API to hand over the inverter IP
   port: 8787
-  remote: "127.0.0.1:8787"
+  remote: "127.0.0.1:8787"  # facades still talk to the core over loopback
 ```
 
 Consumers then point at the host's own IP, port `8899`. This mode costs a port
 per facade, so two facades that both expect UDP `8899` cannot coexist; use the
 macvlan file when every facade needs its own address.
+
+## Home Assistant integration
+
+The repo ships a custom integration in `custom_components/ha_inverter_proxy`.
+Copy that folder to `<HA config>/custom_components/ha_inverter_proxy` on each HA
+instance and restart Home Assistant, then add **Inverter Proxy** from
+**Settings → Devices & Services → Add Integration**.
+
+The setup form asks for the proxy IP, verifies the control API on port `8787`,
+reads the existing GoodWe integration, hands that inverter address to the proxy,
+and changes the GoodWe integration in place to use the proxy's `8899` facade.
+Entity IDs and names are preserved. If the stored GoodWe address is stale, the
+proxy's currently configured inverter address is tried too; you can override
+either with the **Inverter IP address** field.
+
+The form also explains the automatic fallback: if the proxy is unreachable for
+more than five minutes **and** the real inverter still answers, HA temporarily
+points GoodWe back to the inverter so its status stays visible. As soon as the
+proxy answers again, HA switches back automatically. Removing the integration
+restores the original GoodWe address.
+
+Multiple HA instances can each add the same proxy; they all read cached data and
+the proxy remains the only client that polls or writes to the physical inverter.
 
 ## Configuration
 
@@ -161,14 +188,19 @@ Compose services override it per container on the command line.
 | Key | Meaning |
 | --- | --- |
 | `mode` | `all` (one process), `core` (poll + TCP endpoint), `facade` (serve, forward to core) |
-| `poll.interval` / `poll.ttl` | seconds between polls; age at which a reading is stale |
+| `poll.interval` / `poll.ttl` | seconds between polls (default 10); age at which a reading is stale |
 | `poll.min_backoff` / `max_backoff` | retry backoff bounds after a failed poll |
+| `write_interval` | minimum seconds between writes to the real device (default 10) |
 | `core.listen_host` / `core.port` | where the core listens (default `0.0.0.0:8787`) |
 | `core.remote` | `host:port` of the core, used by facades |
 | `core.device` | the device a facade fronts when it does not say |
 | `drivers[]` | one entry per inverter: `name`, `brand`, `enabled`, `host`, `port`, `comm_addr`, ... |
 | `battery` | `brand`, `control` (`ems` or `eco`), `rated_power_w`, optional `driver` |
 | `servers[]` | one entry per facade: `kind`, `device`, `host`, `port` |
+
+If a GoodWe poll fails, the core logs
+`goodwe inverter/proxy not found on ip:<configured host>:<port>`, naming the
+address from `drivers[].host` so a stale or unreachable IP is easy to spot.
 
 Modes in more detail:
 
@@ -189,6 +221,7 @@ TCP, so it can be re-implemented in any language later:
 {"op": "write",    "device": "goodwe", "offset": 47517, "value": 50}
 {"op": "snapshot", "device": "goodwe"}
 {"op": "status",   "device": "goodwe"}
+{"op": "configure","device": "goodwe", "host": "192.168.20.13", "port": 8899}
 {"op": "ping"}
 ```
 

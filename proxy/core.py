@@ -197,6 +197,7 @@ class EnergyProxy(_Service):
             ttl=self.config.poll_ttl,
             min_backoff=self.config.min_backoff,
             max_backoff=self.config.max_backoff,
+            write_interval=self.config.write_interval,
             logger=self.logger,
         )
         self.links = build_local_links(self.config, self.drivers, self.poller)
@@ -248,7 +249,13 @@ class EnergyProxy(_Service):
                 if hasattr(server, "stats")
             },
             "drivers": [
-                {"name": d.name, "brand": d.brand, "enabled": getattr(d, "enabled", True)}
+                {
+                    "name": d.name,
+                    "brand": d.brand,
+                    "enabled": getattr(d, "enabled", True),
+                    "host": getattr(d, "host", ""),
+                    "port": getattr(d, "port", None),
+                }
                 for d in self.drivers
             ],
         }
@@ -269,6 +276,7 @@ class CoreService(_Service):
             ttl=self.config.poll_ttl,
             min_backoff=self.config.min_backoff,
             max_backoff=self.config.max_backoff,
+            write_interval=self.config.write_interval,
             logger=self.logger,
         )
         self.links = build_local_links(self.config, self.drivers, self.poller)
@@ -312,7 +320,13 @@ class CoreService(_Service):
             "core": self.server.as_dict(),
             "poll": self.poller.status_dict(),
             "drivers": [
-                {"name": d.name, "brand": d.brand, "enabled": getattr(d, "enabled", True)}
+                {
+                    "name": d.name,
+                    "brand": d.brand,
+                    "enabled": getattr(d, "enabled", True),
+                    "host": getattr(d, "host", ""),
+                    "port": getattr(d, "port", None),
+                }
                 for d in self.drivers
             ],
         }

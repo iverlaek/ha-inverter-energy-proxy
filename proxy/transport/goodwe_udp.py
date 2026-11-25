@@ -130,6 +130,12 @@ class GoodweUdpClient(Transport):
         self.timeout = timeout
         self.retries = retries
 
+    def configure(self, host: str, port: int | None = None) -> None:
+        """Retarget the dongle at runtime (HA supplies the original address)."""
+        self.host = host
+        if port is not None:
+            self.port = int(port)
+
     # -- low level ---------------------------------------------------------
 
     def _transceive(self, cmd: int, offset: int, value: int) -> bytes:

@@ -26,8 +26,9 @@ from typing import Any
 
 DEFAULT_CONFIG_PATH = "/config/inverter_proxy.yaml"
 
-DEFAULT_POLL_INTERVAL = 30.0
+DEFAULT_POLL_INTERVAL = 10.0
 DEFAULT_POLL_TTL = 120.0
+DEFAULT_WRITE_INTERVAL = 10.0
 DEFAULT_MIN_BACKOFF = 5.0
 DEFAULT_MAX_BACKOFF = 300.0
 
@@ -162,6 +163,7 @@ class Config:
     log_level: str = "info"
     poll_interval: float = DEFAULT_POLL_INTERVAL
     poll_ttl: float = DEFAULT_POLL_TTL
+    write_interval: float = DEFAULT_WRITE_INTERVAL
     min_backoff: float = DEFAULT_MIN_BACKOFF
     max_backoff: float = DEFAULT_MAX_BACKOFF
     drivers: list[DriverConfig] = field(default_factory=list)
@@ -190,6 +192,7 @@ class Config:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Config:
         poll = dict(data.get("poll", {}))
+        writes = dict(data.get("writes", {}))
         drivers = [DriverConfig.from_dict(item) for item in data.get("drivers", [])]
         servers_raw = data.get("servers")
         if servers_raw is None:
@@ -212,6 +215,11 @@ class Config:
             log_level=str(data.get("log_level", "info")).lower(),
             poll_interval=float(poll.get("interval", DEFAULT_POLL_INTERVAL)),
             poll_ttl=float(poll.get("ttl", DEFAULT_POLL_TTL)),
+            write_interval=float(
+                writes.get(
+                    "interval", data.get("write_interval", DEFAULT_WRITE_INTERVAL)
+                )
+            ),
             min_backoff=float(poll.get("min_backoff", DEFAULT_MIN_BACKOFF)),
             max_backoff=float(poll.get("max_backoff", DEFAULT_MAX_BACKOFF)),
             drivers=drivers,

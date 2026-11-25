@@ -56,6 +56,14 @@ class InProcessCore(CoreLink):
     def status(self) -> dict[str, Any]:
         return self.poller.status_dict()
 
+    def configure(self, host: str, port: int | None = None) -> dict[str, Any]:
+        self.driver.configure(host, port)  # type: ignore[attr-defined]
+        return {
+            "device": self.device,
+            "host": getattr(self.driver, "host", host),
+            "port": getattr(self.driver, "port", port),
+        }
+
     def close(self) -> None:
         self.driver.close()
 
@@ -126,3 +134,7 @@ class RemoteCore(CoreLink):
         except CoreError:
             return {}
         return response.get("status", {})
+
+    def configure(self, host: str, port: int | None = None) -> dict[str, Any]:
+        response = self._request({"op": "configure", "host": host, "port": port})
+        return {key: value for key, value in response.items() if key != "ok"}

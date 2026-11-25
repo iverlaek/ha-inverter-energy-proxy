@@ -35,6 +35,7 @@ def test_from_dict_parses_everything():
         "mode": "core",
         "log_level": "debug",
         "poll": {"interval": 15, "ttl": 60, "min_backoff": 2, "max_backoff": 100},
+        "write_interval": 7,
         "core": {
             "listen_host": "0.0.0.0",
             "port": 8788,
@@ -68,6 +69,7 @@ def test_from_dict_parses_everything():
     assert config.log_level == "debug"
     assert config.poll_interval == 15
     assert config.poll_ttl == 60
+    assert config.write_interval == 7
     assert config.min_backoff == 2
     assert config.max_backoff == 100
     assert config.core.port == 8788
@@ -96,6 +98,12 @@ def test_servers_can_be_given_as_a_mapping():
 def test_servers_default_when_absent():
     config = Config.from_dict({})
     assert config.servers[0].kind == "goodwe_dongle"
+
+
+def test_pacing_defaults_are_ten_seconds():
+    config = Config.from_dict({})
+    assert config.poll_interval == 10
+    assert config.write_interval == 10
 
 
 def test_unknown_mode_is_rejected():

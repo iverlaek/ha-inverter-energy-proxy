@@ -83,6 +83,9 @@ address, while the brand knowledge stays in one place.
 -> {"op": "status",   "device": "goodwe"}
 <- {"ok": true, "status": {...}}
 
+-> {"op": "configure","device": "goodwe", "host": "192.168.20.13", "port": 8899}
+<- {"ok": true, "device": "goodwe", "host": "192.168.20.13", "port": 8899}
+
 -> {"op": "ping"}
 <- {"ok": true}
 ```

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import logging
 
 import pytest
 
@@ -71,6 +72,14 @@ def test_failure_records_an_exponential_backoff(driver, transport: FakeTransport
     assert poller.status["goodwe"].next_attempt == 116.0
 
 
+def test_failure_warning_names_configured_ip(driver, transport, caplog):
+    transport.fail = True
+    driver.host = "192.168.20.13"
+    with caplog.at_level(logging.WARNING, logger="proxy.poller"):
+        _poller(driver, min_backoff=5).poll_once(now=100.0)
+    assert "goodwe inverter/proxy not found on ip:192.168.20.13:8899" in caplog.text
+
+
 def test_due_follows_the_interval(driver):
     poller = _poller(driver, interval=30)
     assert poller.due(now=1.0) is True
@@ -99,6 +108,15 @@ def test_apply_write_request_raw(driver, transport: FakeTransport):
     poller = _poller(driver)
     poller.apply_write_request(WriteRequest.raw(47000, 5))
     assert (47000, 5) in transport.writes
+
+
+def test_writes_are_paced_for_the_slow_device(driver, transport):
+    poller = _poller(driver, write_interval=0.05)
+    poller.apply_write_request(WriteRequest.raw(47000, 1))
+    poller.apply_write_request(WriteRequest.raw(47000, 2))
+    assert poller.write_count == 2
+    assert poller.status_dict()["write_wait_seconds"] > 0
+    assert (47000, 2) in transport.writes
 
 
 def test_apply_write_request_raw_unknown_offset_raises(driver):

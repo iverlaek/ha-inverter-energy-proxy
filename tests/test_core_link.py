@@ -68,6 +68,17 @@ def test_core_server_dispatch_ops(driver, transport: FakeTransport):
     assert server._dispatch(b'{"op": "ping"}') == {"ok": True}
 
 
+def test_core_server_configure_retargets_the_driver(driver):
+    server = CoreServer({"goodwe": _link(driver)})
+    response = server._dispatch(
+        b'{"op": "configure", "host": "192.168.20.13", "port": 8899}'
+    )
+    assert response["ok"] is True
+    assert response["host"] == "192.168.20.13"
+    assert driver.host == "192.168.20.13"
+    assert driver.port == 8899
+
+
 def test_core_server_dispatch_errors(driver):
     server = CoreServer({"goodwe": _link(driver)})
     assert server._dispatch(b"not json")["ok"] is False

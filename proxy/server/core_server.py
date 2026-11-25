@@ -118,6 +118,11 @@ class CoreServer:
                 return {"ok": True, "values": core.snapshot()}
             if op == "status":
                 return {"ok": True, "status": core.status()}
+            if op == "configure":
+                applied = core.configure(
+                    str(request["host"]), request.get("port")
+                ) or {}
+                return {"ok": True, **applied}
             if op == "ping":
                 return {"ok": True}
             return self._error(f"unknown op {op!r}")

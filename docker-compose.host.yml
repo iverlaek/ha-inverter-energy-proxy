@@ -1,5 +1,8 @@
 # The proxy stack on a single host IP, without macvlan.
 #
+# IoT devices, including this proxy and the GoodWe dongle, live on VLAN20
+# (192.168.20.0/24), not on the 192.168.55.0/24 LAN.
+#
 # Every container shares the host's network namespace (`network_mode: host`), so
 # the facade listens on the host's own LAN address and consumers point straight
 # at that address. Compared with docker-compose.yml this is simpler — no extra

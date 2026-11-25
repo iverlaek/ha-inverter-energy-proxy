@@ -54,6 +54,10 @@ class CoreLink(ABC):
         """Core health, if the link can provide it."""
         return {}
 
+    def configure(self, host: str, port: int | None = None) -> dict[str, Any]:
+        """Retarget the underlying device; return the applied address."""
+        raise NotImplementedError(f"{type(self).__name__} cannot be configured")
+
     def close(self) -> None:  # pragma: no cover - nothing to release by default
         """Release any resources held by the link."""
 

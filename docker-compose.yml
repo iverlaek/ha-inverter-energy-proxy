@@ -1,5 +1,8 @@
 # The proxy stack.
 #
+# IoT devices, including this proxy and the GoodWe dongle, live on VLAN20
+# (192.168.20.0/24), not on the 192.168.55.0/24 LAN.
+#
 # `core` holds all the brand knowledge and polls the real devices. Each
 # `facade-*` presents one emulated device to consumers on its own LAN IP (via the
 # macvlan network below), so consumers can be pointed at that IP and keep using
@@ -25,7 +28,7 @@ services:
     command: ["--config", "/config/inverter_proxy.yaml", "--mode", "core"]
     networks:
       lan:
-        ipv4_address: ${CORE_IP:-192.168.55.91}
+        ipv4_address: ${CORE_IP:-192.168.20.91}
 
   facade-goodwe:
     <<: *proxy
@@ -34,7 +37,7 @@ services:
     command: ["--config", "/config/inverter_proxy.yaml", "--mode", "facade"]
     networks:
       lan:
-        ipv4_address: ${GOODWE_FACADE_IP:-192.168.55.92}
+        ipv4_address: ${GOODWE_FACADE_IP:-192.168.20.92}
 
 networks:
   lan:
@@ -43,5 +46,5 @@ networks:
       parent: ${LAN_PARENT:-enp3s0}
     ipam:
       config:
-        - subnet: ${LAN_SUBNET:-192.168.55.0/24}
-          gateway: ${LAN_GATEWAY:-192.168.55.1}
+        - subnet: ${LAN_SUBNET:-192.168.20.0/24}
+          gateway: ${LAN_GATEWAY:-192.168.20.1}

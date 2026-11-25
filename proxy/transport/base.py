@@ -26,5 +26,8 @@ class Transport(ABC):
     def write_register(self, register: int, value: int) -> None:
         """Write a single 16-bit register."""
 
+    def configure(self, host: str, port: int | None = None) -> None:
+        """Retarget an addressed transport; no-op for address-less transports."""
+
     def close(self) -> None:  # pragma: no cover - nothing to release by default
         """Release any resources held by the transport."""

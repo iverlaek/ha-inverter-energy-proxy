@@ -85,6 +85,9 @@ class InverterDriver(ABC):
     def close(self) -> None:
         """Release the transport."""
 
+    def configure(self, host: str, port: int | None = None) -> None:
+        """Retarget the physical device at runtime; no-op by default."""
+
     # -- canonical model ---------------------------------------------------
 
     @abstractmethod

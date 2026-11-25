@@ -10,6 +10,7 @@ traffic than a room full of independent clients would generate.
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any, Iterable
@@ -27,6 +28,17 @@ from .intents import BatteryIntent, intent_for_schedule
 from .schedule import Schedule
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _driver_endpoint(driver: InverterDriver) -> str:
+    """Return the configured ``host[:port]`` of a driver's device."""
+    host = str(getattr(driver, "host", "") or "")
+    port = getattr(driver, "port", None)
+    if port is None:
+        port = getattr(getattr(driver, "transport", None), "port", None)
+    if not host:
+        return ""
+    return f"{host}:{port}" if port else host
 
 
 @dataclass
@@ -70,6 +82,7 @@ class Poller:
         ttl: float = 120.0,
         min_backoff: float = 5.0,
         max_backoff: float = 300.0,
+        write_interval: float = 10.0,
         logger: logging.Logger | None = None,
     ) -> None:
         self.drivers = list(drivers)
@@ -78,6 +91,11 @@ class Poller:
         self.ttl = ttl
         self.min_backoff = min_backoff
         self.max_backoff = max_backoff
+        self.write_interval = max(0.0, write_interval)
+        self._write_lock = threading.Lock()
+        self._next_write = 0.0
+        self.write_count = 0
+        self.write_wait_seconds = 0.0
         self.logger = logger or _LOGGER
         self.snapshot = Snapshot()
         self.states: dict[str, DeviceState] = {}
@@ -110,7 +128,7 @@ class Poller:
         try:
             readings = driver.read_state()
         except Exception as err:  # noqa: BLE001 - one bad device must not stop the rest
-            self._record_failure(status, err, now)
+            self._record_failure(status, err, now, driver)
             return
         status.online = True
         status.last_error = ""
@@ -143,16 +161,32 @@ class Poller:
         except Exception as err:  # noqa: BLE001
             self.logger.debug("battery %s tick failed: %s", battery.name, err)
 
-    def _record_failure(self, status: PollStatus, err: Exception, now: float) -> None:
+    def _record_failure(
+        self,
+        status: PollStatus,
+        err: Exception,
+        now: float,
+        driver: InverterDriver | None = None,
+    ) -> None:
         status.online = False
         status.last_error = str(err)
         status.failures += 1
         status.errors += 1
         backoff = min(self.max_backoff, self.min_backoff * (2 ** (status.failures - 1)))
         status.next_attempt = now + backoff
-        self.logger.warning(
-            "%s poll failed (%s); retrying in %.0fs", status.name, err, backoff
-        )
+        endpoint = _driver_endpoint(driver) if driver is not None else ""
+        if driver is not None and driver.brand.lower() == "goodwe":
+            self.logger.warning(
+                "goodwe inverter/proxy not found on ip:%s (poll failed: %s); "
+                "retrying in %.0fs",
+                endpoint or status.name,
+                err,
+                backoff,
+            )
+        else:
+            self.logger.warning(
+                "%s poll failed (%s); retrying in %.0fs", status.name, err, backoff
+            )
 
     def due(self, now: float | None = None) -> bool:
         """Whether any enabled driver is due for a poll."""
@@ -168,7 +202,23 @@ class Poller:
     # -- writes ------------------------------------------------------------
 
     def apply_write_request(self, request: WriteRequest) -> None:
-        """Apply one decoded consumer write."""
+        """Apply one decoded consumer write, paced for the slow inverter.
+
+        Consumers may write as often as they like; only the physical device is
+        rate-limited. The wait happens in the caller's thread (the core server
+        dispatches each request in its own thread), so the event loop stays free.
+        """
+        with self._write_lock:
+            if self.write_interval:
+                delay = self._next_write - time.monotonic()
+                if delay > 0:
+                    time.sleep(delay)
+                    self.write_wait_seconds += delay
+                self._next_write = time.monotonic() + self.write_interval
+            self.write_count += 1
+            self._apply_write_request_now(request)
+
+    def _apply_write_request_now(self, request: WriteRequest) -> None:
         if request.kind == WRITE_CANONICAL:
             self.apply_canonical(request.key, request.value)
             return
@@ -248,6 +298,9 @@ class Poller:
             "last_poll": self.last_poll,
             "interval": self.interval,
             "ttl": self.ttl,
+            "write_interval": self.write_interval,
+            "writes": self.write_count,
+            "write_wait_seconds": round(self.write_wait_seconds, 3),
             "devices": {name: s.as_dict(now) for name, s in self.status.items()},
             "readings": len(self.snapshot),
             "stale": self.stale_keys(now),
