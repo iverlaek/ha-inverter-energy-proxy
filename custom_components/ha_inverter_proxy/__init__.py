@@ -93,9 +93,7 @@ async def async_set_goodwe_address(
     hass: HomeAssistant, entry_id: str, host: str, port: int
 ) -> bool:
     """Update the GoodWe config entry in place, preserving its entity IDs."""
-    _LOGGER.warning(
-        "Setting GoodWe entry %s to %s:%s", entry_id, host, port
-    )
+    _LOGGER.debug("Setting GoodWe entry %s to %s:%s", entry_id, host, port)
     goodwe = hass.config_entries.async_get_entry(entry_id)
     if goodwe is None:
         _LOGGER.warning("GoodWe config entry %s no longer exists", entry_id)
@@ -141,22 +139,29 @@ async def async_set_goodwe_mode(
     """Point GoodWe at either the proxy facade or the physical inverter."""
     goodwe_id = runtime[CONF_GOODWE_ENTRY_ID]
     if mode == "proxy":
-        changed = await async_set_goodwe_address(
+        # Clear a previous manual override before awaiting the entry reload,
+        # so the monitor does not restore the old target during that await.
+        runtime["manual_mode"] = None
+        return await async_set_goodwe_address(
             hass,
             goodwe_id,
             runtime[CONF_PROXY_HOST],
             int(runtime[CONF_FACADE_PORT]),
         )
-        runtime["manual_mode"] = None
-        return changed
     if mode == "inverter":
+        # Set the override before awaiting the reload; otherwise the monitor can
+        # see the new address and switch it back before this call finishes.
+        runtime["manual_mode"] = "inverter"
         changed = await async_set_goodwe_address(
             hass,
             goodwe_id,
             runtime[CONF_ORIGINAL_HOST],
             int(runtime[CONF_ORIGINAL_PORT]),
         )
-        runtime["manual_mode"] = "inverter"
+        if not changed:
+            goodwe = hass.config_entries.async_get_entry(goodwe_id)
+            if not goodwe or goodwe.data.get(CONF_HOST) != runtime[CONF_ORIGINAL_HOST]:
+                runtime["manual_mode"] = None
         return changed
     raise HomeAssistantError(f"Unknown GoodWe mode {mode!r}")
 
