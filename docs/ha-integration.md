@@ -75,16 +75,21 @@ The setup form explains the automatic fallback before you save it.
 | Inverter GoodWe port | `8899` | Real dongle UDP port |
 | Proxy server control URL | `http://<proxy>:8790` | Optional URL of the VM lifecycle control service |
 | Proxy server control token | — | Optional bearer token; stored only in HA, never in this repo |
+| Proxy health check interval | `30` | Seconds between proxy GoodWe facade checks |
+| Fallback delay | `300` | Seconds the proxy must be unreachable before using the inverter |
 
 If several GoodWe entries exist, a second step asks which one to redirect. The
-control URL and token can also be set later from the entry's Configure panel;
-leave the token field blank there to keep the existing value.
+control URL, token, and both timings can also be changed later from the entry's
+Configure panel; leave the token field blank there to keep the existing value.
+Changes apply immediately after saving (the integration reloads itself).
 
 ## Automatic fallback
 
-The integration checks the proxy GoodWe facade every 30 seconds.
+The integration checks the proxy GoodWe facade at the configured interval
+(30 seconds by default).
 
-- If the proxy is unreachable for **more than 5 minutes** and the real inverter
+- If the proxy is unreachable for **longer than the configured delay**
+  (300 seconds by default) and the real inverter
   still answers a minimal GoodWe read, HA changes the GoodWe entry back to the
   original inverter address and reloads it. This keeps inverter status visible
   while the proxy is down.
@@ -108,9 +113,9 @@ See [deployment.md](deployment.md#vm-lifecycle-control-service) for installation
 | Reboot | `docker compose -f docker-compose.host.yml up -d --force-recreate` |
 | Shutdown | `docker compose -f docker-compose.host.yml down --remove-orphans` |
 
-Stopping or shutting down the proxy triggers the normal fallback after five
-minutes: HA repoints GoodWe to the inverter so you keep seeing live data. The
-addresses switch back automatically once the proxy answers again.
+Stopping or shutting down the proxy triggers the normal fallback after the
+configured delay: HA repoints GoodWe to the inverter so you keep seeing live
+data. The addresses switch back automatically once the proxy answers again.
 
 These buttons control the **proxy service**, not the VM's power state. A full
 VM reboot or power-off must be done from the hypervisor or via SSH.

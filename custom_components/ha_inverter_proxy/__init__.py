@@ -27,18 +27,20 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
-    CHECK_INTERVAL_SECONDS,
+    CONF_CHECK_INTERVAL_SECONDS,
     CONF_CONTROL_TOKEN,
     CONF_CONTROL_URL,
     CONF_CORE_PORT,
     CONF_FACADE_PORT,
+    CONF_FALLBACK_AFTER_SECONDS,
     CONF_GOODWE_ENTRY_ID,
     CONF_ORIGINAL_HOST,
     CONF_ORIGINAL_PORT,
     CONF_PROXY_HOST,
+    DEFAULT_CHECK_INTERVAL_SECONDS,
     DEFAULT_CONTROL_PORT,
+    DEFAULT_FALLBACK_AFTER_SECONDS,
     DOMAIN,
-    FALLBACK_AFTER_SECONDS,
     PLATFORMS,
     update_signal,
 )
@@ -236,12 +238,12 @@ async def _async_monitor(
             runtime[CONF_PROXY_HOST],
             runtime[CONF_FACADE_PORT],
             runtime[CONF_ORIGINAL_HOST],
-            FALLBACK_AFTER_SECONDS,
+            runtime[CONF_FALLBACK_AFTER_SECONDS],
         )
 
     if runtime["fallback_active"]:
         return
-    if now - runtime["missed_since"] < FALLBACK_AFTER_SECONDS:
+    if now - runtime["missed_since"] < runtime[CONF_FALLBACK_AFTER_SECONDS]:
         return
 
     inverter_up = await hass.async_add_executor_job(
@@ -272,10 +274,15 @@ async def _async_monitor(
         _LOGGER.warning(
             "Proxy unavailable for more than %s minutes; GoodWe reverted directly "
             "to inverter %s:%s until the proxy returns",
-            FALLBACK_AFTER_SECONDS // 60,
+            runtime[CONF_FALLBACK_AFTER_SECONDS] // 60,
             runtime[CONF_ORIGINAL_HOST],
             runtime[CONF_ORIGINAL_PORT],
         )
+
+
+async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the entry so options changes take effect immediately."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -304,6 +311,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         CONF_ORIGINAL_PORT: int(data[CONF_ORIGINAL_PORT]),
         CONF_CONTROL_URL: data.get(CONF_CONTROL_URL),
         CONF_CONTROL_TOKEN: data.get(CONF_CONTROL_TOKEN),
+        CONF_CHECK_INTERVAL_SECONDS: int(
+            data.get(CONF_CHECK_INTERVAL_SECONDS, DEFAULT_CHECK_INTERVAL_SECONDS)
+        ),
+        CONF_FALLBACK_AFTER_SECONDS: int(
+            data.get(CONF_FALLBACK_AFTER_SECONDS, DEFAULT_FALLBACK_AFTER_SECONDS)
+        ),
         "fallback_active": fallback_active,
         "manual_mode": None,
         "missed_since": None,
@@ -311,12 +324,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "configured": False,
     }
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
     await _async_configure_proxy(hass, runtime)
     unsub = async_track_time_interval(
         hass,
         partial(_async_monitor, hass, entry.entry_id),
-        timedelta(seconds=CHECK_INTERVAL_SECONDS),
+        timedelta(seconds=runtime[CONF_CHECK_INTERVAL_SECONDS]),
     )
     runtime["unsub"] = unsub
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

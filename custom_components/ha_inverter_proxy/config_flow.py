@@ -17,19 +17,23 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_CHECK_INTERVAL_SECONDS,
     CONF_CONTROL_TOKEN,
     CONF_CONTROL_URL,
     CONF_CORE_PORT,
     CONF_FACADE_PORT,
+    CONF_FALLBACK_AFTER_SECONDS,
     CONF_GOODWE_ENTRY_ID,
     CONF_INVERTER_HOST,
     CONF_INVERTER_PORT,
     CONF_ORIGINAL_HOST,
     CONF_ORIGINAL_PORT,
     CONF_PROXY_HOST,
+    DEFAULT_CHECK_INTERVAL_SECONDS,
     DEFAULT_CONTROL_PORT,
     DEFAULT_CORE_PORT,
     DEFAULT_FACADE_PORT,
+    DEFAULT_FALLBACK_AFTER_SECONDS,
     DOMAIN,
 )
 from .probe import (
@@ -52,6 +56,8 @@ class InverterProxyConfigFlow(ConfigFlow, domain=DOMAIN):
         self._facade_port = DEFAULT_FACADE_PORT
         self._control_url = ""
         self._control_token = ""
+        self._check_interval = DEFAULT_CHECK_INTERVAL_SECONDS
+        self._fallback_after = DEFAULT_FALLBACK_AFTER_SECONDS
         self._status: dict[str, Any] | None = None
         self._goodwe_entries: list[ConfigEntry] = []
 
@@ -93,6 +99,18 @@ class InverterProxyConfigFlow(ConfigFlow, domain=DOMAIN):
                         type=selector.TextSelectorType.PASSWORD
                     )
                 ),
+                vol.Optional(
+                    CONF_CHECK_INTERVAL_SECONDS,
+                    default=values.get(
+                        CONF_CHECK_INTERVAL_SECONDS, DEFAULT_CHECK_INTERVAL_SECONDS
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=3600)),
+                vol.Optional(
+                    CONF_FALLBACK_AFTER_SECONDS,
+                    default=values.get(
+                        CONF_FALLBACK_AFTER_SECONDS, DEFAULT_FALLBACK_AFTER_SECONDS
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=30, max=86400)),
             }
         )
 
@@ -110,6 +128,16 @@ class InverterProxyConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             self._control_url = str(user_input.get(CONF_CONTROL_URL, "")).strip()
             self._control_token = str(user_input.get(CONF_CONTROL_TOKEN, "")).strip()
+            self._check_interval = int(
+                user_input.get(
+                    CONF_CHECK_INTERVAL_SECONDS, DEFAULT_CHECK_INTERVAL_SECONDS
+                )
+            )
+            self._fallback_after = int(
+                user_input.get(
+                    CONF_FALLBACK_AFTER_SECONDS, DEFAULT_FALLBACK_AFTER_SECONDS
+                )
+            )
 
             if not await self.hass.async_add_executor_job(
                 ping_proxy, self._proxy_host, self._core_port
@@ -200,6 +228,8 @@ class InverterProxyConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_FACADE_PORT: self._facade_port,
                 CONF_INVERTER_HOST: original_host,
                 CONF_INVERTER_PORT: original_port,
+                CONF_CHECK_INTERVAL_SECONDS: self._check_interval,
+                CONF_FALLBACK_AFTER_SECONDS: self._fallback_after,
             }
             return self.async_show_form(
                 step_id="user", data_schema=self._user_schema(values), errors=errors
@@ -234,6 +264,8 @@ class InverterProxyConfigFlow(ConfigFlow, domain=DOMAIN):
             CONF_GOODWE_ENTRY_ID: goodwe.entry_id,
             CONF_ORIGINAL_HOST: chosen_host,
             CONF_ORIGINAL_PORT: original_port,
+            CONF_CHECK_INTERVAL_SECONDS: self._check_interval,
+            CONF_FALLBACK_AFTER_SECONDS: self._fallback_after,
         }
         if self._control_url:
             data[CONF_CONTROL_URL] = self._control_url
@@ -261,8 +293,14 @@ class InverterProxyOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Edit the lifecycle control settings without re-adding the integration."""
+        """Edit control and fallback timing settings without re-adding the entry."""
         current = {**self.config_entry.data, **self.config_entry.options}
+        check_interval = int(
+            current.get(CONF_CHECK_INTERVAL_SECONDS, DEFAULT_CHECK_INTERVAL_SECONDS)
+        )
+        fallback_after = int(
+            current.get(CONF_FALLBACK_AFTER_SECONDS, DEFAULT_FALLBACK_AFTER_SECONDS)
+        )
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -275,6 +313,16 @@ class InverterProxyOptionsFlow(OptionsFlow):
                 options.pop(CONF_CONTROL_URL)
             if token:
                 options[CONF_CONTROL_TOKEN] = token
+            options[CONF_CHECK_INTERVAL_SECONDS] = int(
+                user_input.get(
+                    CONF_CHECK_INTERVAL_SECONDS, DEFAULT_CHECK_INTERVAL_SECONDS
+                )
+            )
+            options[CONF_FALLBACK_AFTER_SECONDS] = int(
+                user_input.get(
+                    CONF_FALLBACK_AFTER_SECONDS, DEFAULT_FALLBACK_AFTER_SECONDS
+                )
+            )
             return self.async_create_entry(title="", data=options)
 
         schema = vol.Schema(
@@ -291,6 +339,12 @@ class InverterProxyOptionsFlow(OptionsFlow):
                         type=selector.TextSelectorType.PASSWORD
                     )
                 ),
+                vol.Optional(
+                    CONF_CHECK_INTERVAL_SECONDS, default=check_interval
+                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=3600)),
+                vol.Optional(
+                    CONF_FALLBACK_AFTER_SECONDS, default=fallback_after
+                ): vol.All(vol.Coerce(int), vol.Range(min=30, max=86400)),
             }
         )
         return self.async_show_form(
@@ -307,5 +361,7 @@ class InverterProxyOptionsFlow(OptionsFlow):
                 "core_address": (
                     f"{current.get(CONF_PROXY_HOST, '?')}:{current.get(CONF_CORE_PORT, '?')}"
                 ),
+                "check_interval_seconds": check_interval,
+                "fallback_after_seconds": fallback_after,
             },
         )
