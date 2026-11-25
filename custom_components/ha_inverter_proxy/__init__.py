@@ -134,19 +134,23 @@ async def async_set_goodwe_mode(
 ) -> bool:
     """Point GoodWe at either the proxy facade or the physical inverter."""
     if mode == "proxy":
-        return await async_set_goodwe_address(
+        changed = await async_set_goodwe_address(
             hass,
             entry_id,
             runtime[CONF_PROXY_HOST],
             int(runtime[CONF_FACADE_PORT]),
         )
+        runtime["manual_mode"] = None
+        return changed
     if mode == "inverter":
-        return await async_set_goodwe_address(
+        changed = await async_set_goodwe_address(
             hass,
             entry_id,
             runtime[CONF_ORIGINAL_HOST],
             int(runtime[CONF_ORIGINAL_PORT]),
         )
+        runtime["manual_mode"] = "inverter"
+        return changed
     raise HomeAssistantError(f"Unknown GoodWe mode {mode!r}")
 
 
@@ -191,7 +195,9 @@ async def _async_monitor(
 
         goodwe = hass.config_entries.async_get_entry(runtime[CONF_GOODWE_ENTRY_ID])
         current_host = goodwe.data.get(CONF_HOST) if goodwe else None
-        if runtime["fallback_active"] or current_host == runtime[CONF_ORIGINAL_HOST]:
+        if runtime.get("manual_mode") != "inverter" and (
+            runtime["fallback_active"] or current_host == runtime[CONF_ORIGINAL_HOST]
+        ):
             changed = await async_set_goodwe_address(
                 hass,
                 runtime[CONF_GOODWE_ENTRY_ID],
@@ -250,6 +256,7 @@ async def _async_monitor(
     )
     if changed:
         runtime["fallback_active"] = True
+        runtime["manual_mode"] = None
         _LOGGER.warning(
             "Proxy unavailable for more than %s minutes; GoodWe reverted directly "
             "to inverter %s:%s until the proxy returns",
@@ -277,6 +284,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         CONF_CONTROL_URL: data.get(CONF_CONTROL_URL),
         CONF_CONTROL_TOKEN: data.get(CONF_CONTROL_TOKEN),
         "fallback_active": fallback_active,
+        "manual_mode": None,
         "missed_since": None,
         "inverter_check_logged": False,
         "configured": False,
