@@ -256,7 +256,7 @@ class InverterProxyOptionsFlow(OptionsFlow):
     """Show the configured addresses and let the user set the control token."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
-        self.config_entry = config_entry
+        """Create the flow; HA exposes ``config_entry`` as a property after init."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
