@@ -273,7 +273,7 @@ class InverterProxyConfigFlow(ConfigFlow, domain=DOMAIN):
             data[CONF_CONTROL_TOKEN] = self._control_token
 
         return self.async_create_entry(
-            title=f"Inverter proxy ({self._proxy_host})",
+            title=f"Goodwe Inverter Proxy ({self._proxy_host})",
             data=data,
         )
 

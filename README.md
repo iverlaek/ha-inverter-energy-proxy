@@ -168,7 +168,7 @@ macvlan file when every facade needs its own address.
 
 The repo ships a custom integration in `custom_components/ha_inverter_proxy`.
 Copy that folder to `<HA config>/custom_components/ha_inverter_proxy` on each HA
-instance and restart Home Assistant, then add **Inverter Proxy** from
+instance and restart Home Assistant, then add **Goodwe Inverter Proxy** from
 **Settings → Devices & Services → Add Integration**.
 
 The setup form asks for the proxy IP, verifies the control API on port `8787`,

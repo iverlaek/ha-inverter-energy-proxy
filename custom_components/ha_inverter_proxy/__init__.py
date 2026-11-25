@@ -61,9 +61,9 @@ def device_info(entry: ConfigEntry) -> DeviceInfo:
     host = entry.data.get(CONF_PROXY_HOST, "")
     return DeviceInfo(
         identifiers={(DOMAIN, entry.entry_id)},
-        name=f"Inverter Proxy ({host})",
+        name=f"Goodwe Inverter Proxy ({host})",
         manufacturer="iverlaek",
-        model="Inverter Proxy",
+        model="Goodwe Inverter Proxy",
         configuration_url=f"http://{host}:{DEFAULT_CONTROL_PORT}",
     )
 

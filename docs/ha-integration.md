@@ -28,7 +28,7 @@ whether they are reading a GoodWe, SolarEdge, or Enphase device.
 
 ## Control panel in Home Assistant
 
-Every address and control is exposed as an entity on the **Inverter Proxy**
+Every address and control is exposed as an entity on the **Goodwe Inverter Proxy**
 device, so it can be shown on a dashboard or the device panel:
 
 | Entity | Type | Meaning |
@@ -60,7 +60,7 @@ the checkmark and address sensors refresh immediately.
 2. Restart Home Assistant.
 
 3. Go to **Settings → Devices & Services → Add Integration** and choose
-   **Inverter Proxy**.
+   **Goodwe Inverter Proxy**.
 
 The setup form explains the automatic fallback before you save it.
 
@@ -122,7 +122,7 @@ VM reboot or power-off must be done from the hypervisor or via SSH.
 
 ## Removing the integration
 
-Removing the **Inverter Proxy** entry restores the original GoodWe address and
+Removing the **Goodwe Inverter Proxy** entry restores the original GoodWe address and
 reloads GoodWe. Unloading it only stops the monitor; it does not change any
 address.
 
@@ -132,7 +132,7 @@ After setup, check:
 
 ```text
 Settings → Devices & Services → GoodWe   → configured, no retry state
-Settings → Devices & Services → Inverter Proxy → loaded
+Settings → Devices & Services → Goodwe Inverter Proxy → loaded
 ```
 
 Useful API checks:
@@ -142,7 +142,7 @@ GET /api/config/config_entries/entry
 ```
 
 The GoodWe entry should have `host` equal to the proxy IP and `port` `8899`.
-The Inverter Proxy entry stores `proxy_host`, `core_port`, `facade_port`,
+The Goodwe Inverter Proxy entry stores `proxy_host`, `core_port`, `facade_port`,
 `goodwe_entry_id`, `original_host`, and `original_port`.
 
 Compare the entity registry before and after setup: the GoodWe entity IDs and

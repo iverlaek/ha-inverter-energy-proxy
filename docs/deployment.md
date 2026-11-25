@@ -185,7 +185,7 @@ containers are stopped.
    conflict when a new login session starts.
 
 3. In HA, set the control URL to `http://<PROXY_IP>:8790` and paste the token
-   into the Inverter Proxy entry's Configure panel (or into the setup form).
+   into the Goodwe Inverter Proxy entry's Configure panel (or into the setup form).
    The token is stored only in HA's config entry.
 
 Endpoints:

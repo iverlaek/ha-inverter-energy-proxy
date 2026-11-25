@@ -13,7 +13,7 @@ integration does not store that token.
 | --- | --- | --- |
 | `config/inverter_proxy.yaml` | IP addresses, ports, polling settings | Yes — no secrets |
 | `.env` | macvlan network settings (interface, subnet, gateway, IPs) | **No** — git-ignored |
-| HA Inverter Proxy config entry | Proxy IP/ports, GoodWe entry ID, original inverter IP/port, optional VM control URL/token | Inside HA, not in this repo |
+| Goodwe Inverter Proxy config entry | Proxy IP/ports, GoodWe entry ID, original inverter IP/port, optional VM control URL/token | Inside HA, not in this repo |
 | `~/.secrets/proxy_control_token` on the VM | Bearer token for the lifecycle API | **No** — mode 600, outside the repo |
 | HA long-lived token | Home Assistant API access | Outside this repo, e.g. a mode-`600` secrets file |
 | SMB/SSH credentials | Used only to deploy files | Outside this repo |

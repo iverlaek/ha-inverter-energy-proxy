@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Connect to the inverter proxy",
+        "title": "Connect to Goodwe Inverter Proxy",
         "description": "Enter the proxy address. Home Assistant checks that the proxy is reachable, reads the inverter address from the existing GoodWe integration, hands that address to the proxy, and then points GoodWe at the proxy instead of the inverter.\n\nAutomatic fallback: if the proxy is unavailable for longer than the configured delay and the inverter itself still answers, Home Assistant temporarily points GoodWe back to the inverter so you keep seeing its status. When the proxy returns, Home Assistant switches back automatically. Removing this integration restores the original GoodWe address.\n\nThe control URL and token are optional; they enable the Start/Stop/Reboot/Shutdown buttons for the proxy server.",
         "data": {
           "proxy_host": "Proxy IP address",
@@ -38,7 +38,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "Inverter proxy settings",
+        "title": "Goodwe Inverter Proxy settings",
         "description": "Proxy GoodWe address: {proxy_address}\nInverter address: {inverter_address}\nCore control address: {core_address}\n\nChecks every {check_interval_seconds} s; falls back after {fallback_after_seconds} s without the proxy. Leave the token blank to keep the current one. The token is stored only in Home Assistant, never in this repository.",
         "data": {
           "control_url": "Proxy server control URL",

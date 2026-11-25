@@ -1,6 +1,6 @@
 {
   "domain": "ha_inverter_proxy",
-  "name": "Inverter Proxy",
+  "name": "Goodwe Inverter Proxy",
   "codeowners": ["@iverlaek"],
   "config_flow": true,
   "documentation": "https://github.com/iverlaek/ha-inverter-energy-proxy",
