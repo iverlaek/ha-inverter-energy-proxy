@@ -59,6 +59,7 @@ The same image runs either part, selected by `--mode` (see
 
 ## Documentation
 
+- [Fresh VM bootstrap](docs/deployment.md#fresh-vm-bootstrap) — one-command setup on a new Debian/Ubuntu VM
 - [Deployment](docs/deployment.md) — network rules, host/macvlan setup, config reference, control API
 - [Home Assistant integration](docs/ha-integration.md) — install, setup fields, fallback behavior, verification
 - [Security and credentials](docs/security.md) — what is stored where, control API exposure, publishing checklist

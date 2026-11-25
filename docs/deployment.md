@@ -11,6 +11,50 @@
 - The control API has **no authentication**. Expose `8787` only on the trusted
   IoT VLAN and firewall it from other networks and the internet.
 
+## Fresh VM bootstrap
+
+For a brand-new installation, `scripts/bootstrap-vm.sh` turns a clean
+Debian/Ubuntu VM into a proxy host. Run it as the normal user that should own
+the stack:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iverlaek/ha-inverter-energy-proxy/main/scripts/bootstrap-vm.sh \
+  | sudo env PROXY_USER="$USER" GOODWE_DONGLE_HOST=192.168.20.13 bash
+```
+
+Review any script before piping it to a shell. If you already cloned the repo,
+run it directly instead:
+
+```bash
+PROXY_USER="$USER" GOODWE_DONGLE_HOST=192.168.20.13 ./scripts/bootstrap-vm.sh
+```
+
+The script installs Docker Engine, Compose v2, git, Python 3 and cron; clones
+the repo into `$HOME/ha-inverter-energy-proxy`; generates the lifecycle token at
+`$HOME/.secrets/proxy_control_token` if one does not exist; installs the cron
+watchdog at `$HOME/.local/bin/proxy-control-watchdog.sh`; starts the host-network
+stack; and checks `http://127.0.0.1:8790/health`. It never prints the token or
+writes it into the repository.
+
+Useful overrides: `PROXY_USER`, `PROXY_REPO_URL`, `PROXY_REPO_DIR`, and
+`GOODWE_DONGLE_HOST`. The last one sets the fallback dongle address in
+`config/inverter_proxy.yaml`; Home Assistant normally supplies the real address
+at setup time.
+
+The VM still needs a static VLAN20 address. Set it with your hypervisor,
+DHCP reservation, or cloud-init before running the script. For example:
+
+```yaml
+#cloud-config
+runcmd:
+  - curl -fsSL https://raw.githubusercontent.com/iverlaek/ha-inverter-energy-proxy/main/scripts/bootstrap-vm.sh \
+      | sudo env PROXY_USER=verlaek GOODWE_DONGLE_HOST=192.168.20.13 bash
+```
+
+Afterwards, copy the generated token into the Goodwe Inverter Proxy entry's
+Configure panel in each Home Assistant instance. Do not clone a snapshot of an
+existing proxy VM: that would duplicate host keys and carry the token.
+
 ## Two deployment shapes
 
 | File | Mode | Facade address | When to use |
@@ -170,14 +214,15 @@ containers are stopped.
    a detached process and restarts it within a minute if it disappears:
 
    ```bash
+   WATCHDOG="$HOME/.local/bin/proxy-control-watchdog.sh"
    mkdir -p ~/.local/bin
-   cp scripts/proxy-control-watchdog.sh ~/.local/bin/proxy-control-watchdog.sh
-   chmod +x ~/.local/bin/proxy-control-watchdog.sh
-   crontab - <<'EOF'
-   * * * * * /home/verlaek/.local/bin/proxy-control-watchdog.sh
-   @reboot /home/verlaek/.local/bin/proxy-control-watchdog.sh
+   cp scripts/proxy-control-watchdog.sh "$WATCHDOG"
+   chmod +x "$WATCHDOG"
+   crontab - <<EOF
+   @reboot $WATCHDOG
+   * * * * * $WATCHDOG
    EOF
-   ~/.local/bin/proxy-control-watchdog.sh
+   "$WATCHDOG"
    ```
 
    If the systemd user unit was used previously, disable it first with

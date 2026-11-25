@@ -4,8 +4,8 @@
 # A systemd --user unit stops when the last session for that user logs out.
 # If sudo is unavailable to enable linger, run this from cron instead:
 #
-#   * * * * * /home/verlaek/.local/bin/proxy-control-watchdog.sh
-#   @reboot /home/verlaek/.local/bin/proxy-control-watchdog.sh
+#   * * * * * /home/<user>/.local/bin/proxy-control-watchdog.sh
+#   @reboot /home/<user>/.local/bin/proxy-control-watchdog.sh
 #
 # All settings can be overridden with environment variables; no token is stored
 # in this script.
@@ -13,10 +13,11 @@
 set -eu
 
 PYTHON=${PYTHON:-/usr/bin/python3}
-WORKDIR=${PROXY_CONTROL_WORKDIR:-/home/verlaek/ha-inverter-energy-proxy}
+HOME_DIR=${HOME:-$(getent passwd "$(id -un)" | cut -d: -f6)}
+WORKDIR=${PROXY_CONTROL_WORKDIR:-$HOME_DIR/ha-inverter-energy-proxy}
 SCRIPT=${PROXY_CONTROL_SCRIPT:-$WORKDIR/scripts/proxy_control.py}
-TOKEN_FILE=${PROXY_CONTROL_TOKEN_FILE:-/home/verlaek/.secrets/proxy_control_token}
-LOG_FILE=${PROXY_CONTROL_LOG_FILE:-/home/verlaek/.local/log/proxy-control.log}
+TOKEN_FILE=${PROXY_CONTROL_TOKEN_FILE:-$HOME_DIR/.secrets/proxy_control_token}
+LOG_FILE=${PROXY_CONTROL_LOG_FILE:-$HOME_DIR/.local/log/proxy-control.log}
 HOST=${PROXY_CONTROL_HOST:-0.0.0.0}
 PORT=${PROXY_CONTROL_PORT:-8790}
 
