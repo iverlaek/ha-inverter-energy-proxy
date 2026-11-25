@@ -2,9 +2,9 @@
 
 On setup HA hands the original inverter address to the proxy core, then keeps
 the GoodWe config entry pointed at the proxy's dongle facade. If the facade is
-unreachable for five minutes and the real inverter answers, the GoodWe entry is
-temporarily restored to the inverter. As soon as the proxy answers again, the
-entry is switched back automatically.
+unreachable for the configured delay and the real inverter answers, the GoodWe
+entry is temporarily restored to the inverter. As soon as the proxy answers
+again, the entry is switched back automatically.
 
 The integration also exposes the addresses, a proxy/inverter toggle, and
 lifecycle buttons for the proxy VM's control service.
