@@ -54,7 +54,13 @@ class InProcessCore(CoreLink):
         return self.driver.snapshot().serialized()
 
     def status(self) -> dict[str, Any]:
-        return self.poller.status_dict()
+        status = self.poller.status_dict()
+        status["device"] = {
+            "name": self.device,
+            "host": getattr(self.driver, "host", ""),
+            "port": getattr(self.driver, "port", None),
+        }
+        return status
 
     def configure(self, host: str, port: int | None = None) -> dict[str, Any]:
         self.driver.configure(host, port)  # type: ignore[attr-defined]

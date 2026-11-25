@@ -50,3 +50,8 @@ def test_bad_crc_is_rejected():
 def test_configured_device_host_extracts_goodwe():
     status = {"drivers": [{"name": "solaredge", "host": "1.2.3.4"}, {"name": "goodwe", "host": "192.168.20.13"}]}
     assert probe.configured_device_host(status) == "192.168.20.13"
+
+
+def test_configured_device_host_reads_core_link_status():
+    status = {"device": {"name": "goodwe", "host": "192.168.20.13", "port": 8899}}
+    assert probe.configured_device_host(status) == "192.168.20.13"

@@ -149,6 +149,9 @@ def configured_device_host(status: dict[str, Any] | None) -> str | None:
     """Extract the GoodWe host currently configured in the proxy."""
     if not status:
         return None
+    device = status.get("device")
+    if isinstance(device, dict) and device.get("host"):
+        return str(device["host"])
     for driver in status.get("drivers", []):
         if isinstance(driver, dict) and driver.get("name") == "goodwe":
             host = driver.get("host")
