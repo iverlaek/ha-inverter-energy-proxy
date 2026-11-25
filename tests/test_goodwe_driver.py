@@ -36,7 +36,7 @@ from proxy.canonical import (
 )
 from proxy.drivers.base import WRITE_CANONICAL, WRITE_RAW
 from proxy.drivers.goodwe import GoodweDriver
-from proxy.schedule import ALL_DAYS, MODE_CHARGE, MODE_DISCHARGE, Schedule, ScheduleWindow
+from proxy.schedule import ALL_DAYS, MODE_CHARGE, Schedule, ScheduleWindow
 from proxy.transport.base import TransportError
 
 from conftest import FakeTransport, build_store
@@ -139,14 +139,31 @@ def test_decode_write_bool_field(driver: GoodweDriver):
     assert request.value is False
 
 
-def test_decode_write_in_tou_range_yields_a_schedule(driver: GoodweDriver):
+def test_decode_write_in_tou_range_is_forwarded_raw(driver: GoodweDriver):
+    # A window is written register by register, so the proxy must not decode a
+    # partial window into a schedule: that would normalise the write away.
     (request,) = driver.decode_write(47517, 50)
-    assert request.key == INVERTER_TOU_WINDOWS
-    schedule = request.value
-    assert isinstance(schedule, Schedule)
-    window = schedule.windows[0]
-    assert window.mode == MODE_DISCHARGE
-    assert window.power == 50
+    assert request.kind == WRITE_RAW
+    assert request.offset == 47517
+    assert request.raw_value == 50
+
+
+def test_tou_window_turns_on_when_written_one_register_at_a_time(
+    driver: GoodweDriver, transport: FakeTransport
+):
+    # Regression: the power and the on/off byte arrive as separate writes. The
+    # window used to stay off forever because each half was decoded against the
+    # other half's old value and re-encoded as "off, no power".
+    (power,) = driver.decode_write(47525, 0xFFFF)
+    assert power.kind == WRITE_RAW
+    driver.write_raw(power.offset, power.raw_value)
+    (switch,) = driver.decode_write(47526, 0xFF7F)
+    assert switch.kind == WRITE_RAW
+    driver.write_raw(switch.offset, switch.raw_value)
+
+    assert (47525, 0xFFFF) in transport.writes
+    assert (47526, 0xFF7F) in transport.writes
+    assert driver.image_block(47523, 4) == [0x0000, 0x0000, 0xFFFF, 0xFF7F]
 
 
 def test_decode_write_unknown_offset_is_raw(driver: GoodweDriver):

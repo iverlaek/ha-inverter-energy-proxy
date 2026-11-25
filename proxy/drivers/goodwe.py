@@ -38,8 +38,6 @@ from .goodwe_map import (
     Block,
     TOU_WRITE_RANGES,
     decode_field,
-    decode_windows_v1,
-    decode_windows_v2,
     encode_field,
     windows_for_block,
 )
@@ -175,6 +173,14 @@ class GoodweDriver(InverterDriver):
         The candidate image is not committed here: the returned canonical write
         is applied through :meth:`write`, which then compares against the real
         image and forwards only the registers that actually changed.
+
+        Time-of-Use registers are the exception: they are forwarded verbatim.
+        Consumers such as the GoodWe Home Assistant integration write a window
+        one register at a time — the power first, then the on/off byte. A
+        schedule cannot represent a powered-off window that still carries a
+        pending power, so decoding each partial write and re-encoding the whole
+        schedule normalises both writes away and the window never turns on. The
+        next poll decodes the resulting schedule as usual.
         """
         value &= 0xFFFF
         candidate = dict(self._image)
@@ -182,16 +188,7 @@ class GoodweDriver(InverterDriver):
 
         for start, count in TOU_WRITE_RANGES:
             if start <= offset < start + count:
-                block = self._block_by_offset.get(start)
-                if block is None:
-                    break
-                regs = [candidate.get(block.offset + i, 0) for i in range(block.count)]
-                schedule = (
-                    decode_windows_v2(regs)
-                    if block.name == "tou_v2"
-                    else decode_windows_v1(regs)
-                )
-                return [WriteRequest.canonical(INVERTER_TOU_WINDOWS, schedule)]
+                return [WriteRequest.raw(offset, value)]
 
         entry = self._field_index.get(offset)
         if entry is None:
@@ -203,6 +200,8 @@ class GoodweDriver(InverterDriver):
 
     def write_raw(self, offset: int, value: int) -> None:
         value &= 0xFFFF
+        if self._image.get(offset) == value:
+            return
         self.transport.write_register(offset, value)
         self._image[offset] = value
 
