@@ -93,6 +93,9 @@ async def async_set_goodwe_address(
     hass: HomeAssistant, entry_id: str, host: str, port: int
 ) -> bool:
     """Update the GoodWe config entry in place, preserving its entity IDs."""
+    _LOGGER.warning(
+        "Setting GoodWe entry %s to %s:%s", entry_id, host, port
+    )
     goodwe = hass.config_entries.async_get_entry(entry_id)
     if goodwe is None:
         _LOGGER.warning("GoodWe config entry %s no longer exists", entry_id)
